@@ -36,15 +36,20 @@ PACKED_STRUCT_BEGIN BitmapInfoHeader {
 }
 PACKED_STRUCT_END
 
+int ALIGNMENT = 4;
+int COLORS = 3;
+
 // функция вычисления отступа по ширине
 static int GetBMPStride(int w) {
-    return 4 * ((w * 3 + 3) / 4);
+    return ALIGNMENT * ((w * COLORS + COLORS) / ALIGNMENT);
 }
-
-
 
 bool SaveBMP(const Path& file, const Image& image) {
     ofstream ofs(file, ios::binary);
+    if (!ofs) {
+        return false;
+    }
+    
     BitmapFileHeader bitmap_file_header;
     bitmap_file_header.sign[0] = 'B';
     bitmap_file_header.sign[1] = 'M';
@@ -65,7 +70,14 @@ bool SaveBMP(const Path& file, const Image& image) {
     bitmap_info_header.important_colors = 0x1000000;
     
     ofs.write(reinterpret_cast<char*>(&bitmap_file_header), sizeof(BitmapFileHeader));
+    if (!ofs) {
+        return false;
+    }
+    
     ofs.write(reinterpret_cast<char*>(&bitmap_info_header), sizeof(BitmapInfoHeader));
+    if (!ofs) {
+        return false;
+    }
     const int width = image.GetWidth();
     const int height = image.GetHeight();
     int padding = GetBMPStride(width);
@@ -78,7 +90,12 @@ bool SaveBMP(const Path& file, const Image& image) {
             buffer[x * 3 + 2] = static_cast<char>(line[x].r);
         }
         ofs.write(buffer.data(), padding);
+        if (!ofs) {
+            return false;
+        }
     }
+    ofs.close();
+    
     return true;
 }
 
@@ -90,6 +107,20 @@ Image LoadBMP(const Path& file) {
     
     BitmapInfoHeader bitmap_info_header;
     ifs.read(reinterpret_cast<char*>(&bitmap_info_header), sizeof(BitmapInfoHeader));
+    
+    assert(bitmap_file_header.sign[0] == 'B' && bitmap_file_header.sign[1] == 'M');
+    assert(bitmap_file_header.header_data == sizeof(BitmapFileHeader) + sizeof(BitmapInfoHeader) + GetBMPStride(bitmap_info_header.w) * bitmap_info_header.h);
+    assert(bitmap_file_header.padding == sizeof(BitmapFileHeader) + sizeof(BitmapInfoHeader));
+    
+    assert(bitmap_info_header.header_size == sizeof(BitmapInfoHeader));
+    assert(bitmap_info_header.plane_num == 1);
+    assert(bitmap_info_header.bpp == 24);
+    assert(bitmap_info_header.merge == 0);
+    assert(bitmap_info_header.hor_res == 11811);
+    assert(bitmap_info_header.vert_res == 11811);
+    assert(bitmap_info_header.used_colors == 0);
+    assert(bitmap_info_header.important_colors == 0x1000000);
+    
     
     Image image(bitmap_info_header.w, bitmap_info_header.h, Color::Black());
     int padding = GetBMPStride(bitmap_info_header.w);
