@@ -105,7 +105,8 @@ Image LoadBMP(const Path& file) {
     ifstream ifs(file, ios::binary);
     BitmapFileHeader bitmap_file_header;
     ifs.read(reinterpret_cast<char*>(&bitmap_file_header), sizeof(BitmapFileHeader));
-    if (!ifs) {
+    
+    if (!ifs && (bitmap_file_header.sign[0] != 'B' || bitmap_file_header.sign[1]!='M')) {
         return {};
     }
     
