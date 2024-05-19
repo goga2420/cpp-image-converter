@@ -94,6 +94,7 @@ bool SaveBMP(const Path& file, const Image& image) {
             return false;
         }
     }
+    
     ofs.close();
     
     return true;
@@ -104,23 +105,15 @@ Image LoadBMP(const Path& file) {
     ifstream ifs(file, ios::binary);
     BitmapFileHeader bitmap_file_header;
     ifs.read(reinterpret_cast<char*>(&bitmap_file_header), sizeof(BitmapFileHeader));
+    if (!ifs) {
+        return {};
+    }
     
     BitmapInfoHeader bitmap_info_header;
     ifs.read(reinterpret_cast<char*>(&bitmap_info_header), sizeof(BitmapInfoHeader));
-    
-    assert(bitmap_file_header.sign[0] == 'B' && bitmap_file_header.sign[1] == 'M');
-    assert(bitmap_file_header.header_data == sizeof(BitmapFileHeader) + sizeof(BitmapInfoHeader) + GetBMPStride(bitmap_info_header.w) * bitmap_info_header.h);
-    assert(bitmap_file_header.padding == sizeof(BitmapFileHeader) + sizeof(BitmapInfoHeader));
-    
-    assert(bitmap_info_header.header_size == sizeof(BitmapInfoHeader));
-    assert(bitmap_info_header.plane_num == 1);
-    assert(bitmap_info_header.bpp == 24);
-    assert(bitmap_info_header.merge == 0);
-    assert(bitmap_info_header.hor_res == 11811);
-    assert(bitmap_info_header.vert_res == 11811);
-    assert(bitmap_info_header.used_colors == 0);
-    assert(bitmap_info_header.important_colors == 0x1000000);
-    
+    if (!ifs) {
+        return {};
+    }
     
     Image image(bitmap_info_header.w, bitmap_info_header.h, Color::Black());
     int padding = GetBMPStride(bitmap_info_header.w);
@@ -129,12 +122,17 @@ Image LoadBMP(const Path& file) {
     for (int y = bitmap_info_header.h-1; y >=0; --y) {
         Color* line = image.GetLine(y);
         ifs.read(buffer.data(), padding);
+        if (!ifs) {
+            return {};
+        }
         for (int x = 0; x < bitmap_info_header.w; ++x) {
             line[x].b = static_cast<byte>(buffer[x * 3 + 0]);
             line[x].g = static_cast<byte>(buffer[x * 3 + 1]);
             line[x].r = static_cast<byte>(buffer[x * 3 + 2]);
         }
+        
     }
+
     return image;
 }
 
